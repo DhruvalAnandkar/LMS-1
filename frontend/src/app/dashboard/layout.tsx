@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { BookOpen, Users, GraduationCap, LayoutDashboard, LogOut, FileText } from 'lucide-react';
+import { BookOpen, Users, GraduationCap, LayoutDashboard, LogOut, FileText, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +42,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (user.role === 'teacher' || user.role === 'admin') {
     navItems.push({ icon: FileText, label: 'Assignments', href: '/assignments' });
+  }
+
+  if (user.role === 'admin') {
+    navItems.push({ icon: Shield, label: 'Admin', href: '/admin/users' });
   }
 
   return (
