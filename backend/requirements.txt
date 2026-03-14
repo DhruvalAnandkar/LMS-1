@@ -4,12 +4,13 @@ uvicorn[standard]==0.27.0
 python-multipart==0.0.22
 
 # Database
-sqlalchemy==2.0.25
+sqlalchemy[asyncio]==2.0.25
+greenlet>=3.0.0
 psycopg2-binary==2.9.9
 alembic==1.13.1
 
 # Validation & Settings
-pydantic==2.5.3
+pydantic[email]>=2.7.4,<3
 pydantic-settings==2.1.0
 
 # Authentication
@@ -22,8 +23,8 @@ celery==5.3.4
 
 # AI & ML
 langchain==0.2.5
-langchain-openai==0.0.5
-langgraph==1.0.10rc1
+langchain-openai==0.1.17
+langgraph==0.2.0
 pinecone-client==2.2.4
 google-generativeai==0.3.2
 
@@ -32,6 +33,7 @@ python-dotenv==1.0.0
 httpx==0.26.0
 PyPDF2==3.0.1
 python-docx==1.1.0
+azure-storage-blob==12.19.1
 
 # Testing
 pytest==7.4.4

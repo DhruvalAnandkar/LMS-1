@@ -3,21 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f6f7fb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --muted: #94a3b8;
+  --accent: #0ea5e9;
+  --accent-strong: #0284c7;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: radial-gradient(circle at top left, #f1f5f9, transparent 55%),
+    radial-gradient(circle at top right, #e2e8f0, transparent 45%),
+    var(--background);
+  min-height: 100vh;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 @layer utilities {

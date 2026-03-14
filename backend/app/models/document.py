@@ -13,6 +13,9 @@ class Document(Base):
     title = Column(String(255), nullable=False)
     file_name = Column(String(255), nullable=False)
     file_type = Column(String(50), nullable=False)
+    file_key = Column(String(512), nullable=False)
+    file_url = Column(String(1024), nullable=True)
+    size = Column(Integer, nullable=False, default=0)
     content_text = Column(Text)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
 

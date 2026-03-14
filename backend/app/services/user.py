@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password, hash_token
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
@@ -62,6 +62,16 @@ async def update_password(db: AsyncSession, user_id: int, new_password: str) -> 
     
     db_user.password_hash = get_password_hash(new_password)
     db_user.requires_password_reset = False
+    await db.flush()
+    await db.refresh(db_user)
+    return db_user
+
+
+async def update_refresh_token(db: AsyncSession, user_id: int, refresh_token: str) -> Optional[User]:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        return None
+    db_user.refresh_token_hash = hash_token(refresh_token)
     await db.flush()
     await db.refresh(db_user)
     return db_user

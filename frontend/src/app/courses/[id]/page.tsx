@@ -5,7 +5,19 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { ArrowLeft, Plus, BookOpen, FileText, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  BookOpen,
+  FileText,
+  MessageSquare,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
+import { Input } from '@/components/ui/input';
 
 interface Module {
   id: number;
@@ -64,7 +76,6 @@ export default function CourseDetailPage() {
   const [newAssignment, setNewAssignment] = useState({ title: '', description: '', due_date: '' });
   const [saving, setSaving] = useState(false);
 
-  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
   const isOwner = course?.teacher_id === user?.id || user?.role === 'admin';
 
   useEffect(() => {
@@ -157,7 +168,7 @@ export default function CourseDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
       </div>
     );
   }
@@ -168,69 +179,61 @@ export default function CourseDetailPage() {
 
   return (
     <div>
-      <button
-        onClick={() => router.push('/courses')}
-        className="flex items-center text-gray-600 hover:text-indigo-600 mb-4"
-      >
-        <ArrowLeft className="w-4 h-4 mr-1" />
-        Back to Courses
-      </button>
+      <Button variant="ghost" onClick={() => router.push('/courses')} className="mb-4">
+        <ArrowLeft className="w-4 h-4" />
+        Back to courses
+      </Button>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex justify-between items-start">
+      <Card className="p-6 mb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{course.title}</h1>
-            {course.description && (
-              <p className="text-gray-600">{course.description}</p>
-            )}
-            <p className="text-sm text-gray-500 mt-2">
+            <h1 className="text-3xl font-semibold text-slate-900 font-display mb-2">
+              {course.title}
+            </h1>
+            {course.description && <p className="text-slate-600">{course.description}</p>}
+            <p className="text-sm text-slate-500 mt-3">
               Instructor: {course.teacher?.full_name || 'Unknown'}
             </p>
           </div>
           <Link
             href={`/courses/${courseId}/chat`}
-            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            AI Chatbot
+            <MessageSquare className="w-4 h-4" />
+            AI Assistant
           </Link>
         </div>
-      </div>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Modules & Lessons</h2>
+            <h2 className="text-xl font-semibold text-slate-900">Modules & Lessons</h2>
             {isOwner && (
-              <button
-                onClick={() => setShowModuleModal(true)}
-                className="flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Module
-              </button>
+              <Button size="sm" onClick={() => setShowModuleModal(true)}>
+                <Plus className="w-4 h-4" />
+                Add module
+              </Button>
             )}
           </div>
 
           {modules.length === 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500">
-              No modules yet
-            </div>
+            <Card className="p-6 text-center text-slate-500">No modules yet</Card>
           ) : (
             <div className="space-y-3">
               {modules.map((module) => (
-                <div key={module.id} className="bg-white rounded-lg border border-gray-200">
+                <Card key={module.id} className="overflow-hidden">
                   <button
                     onClick={() => toggleModule(module.id)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50"
                   >
                     <div className="flex items-center">
                       {expandedModules.has(module.id) ? (
-                        <ChevronDown className="w-5 h-5 text-gray-400 mr-2" />
+                        <ChevronDown className="w-5 h-5 text-slate-400 mr-2" />
                       ) : (
-                        <ChevronRight className="w-5 h-5 text-gray-400 mr-2" />
+                        <ChevronRight className="w-5 h-5 text-slate-400 mr-2" />
                       )}
-                      <span className="font-medium text-gray-900">{module.title}</span>
+                      <span className="font-medium text-slate-900">{module.title}</span>
                     </div>
                     {isOwner && (
                       <button
@@ -239,26 +242,23 @@ export default function CourseDetailPage() {
                           setSelectedModuleId(module.id);
                           setShowLessonModal(true);
                         }}
-                        className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                        className="p-1 text-slate-700 hover:bg-slate-100 rounded"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     )}
                   </button>
                   {expandedModules.has(module.id) && module.lessons.length > 0 && (
-                    <div className="border-t border-gray-100 px-4 py-2 pb-4">
+                    <div className="border-t border-slate-100 px-4 py-2 pb-4">
                       {module.lessons.map((lesson) => (
-                        <div
-                          key={lesson.id}
-                          className="flex items-center py-2 text-sm text-gray-600"
-                        >
+                        <div key={lesson.id} className="flex items-center py-2 text-sm text-slate-600">
                           <BookOpen className="w-4 h-4 mr-2" />
                           {lesson.title}
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </Card>
               ))}
             </div>
           )}
@@ -266,198 +266,169 @@ export default function CourseDetailPage() {
 
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Assignments</h2>
+            <h2 className="text-xl font-semibold text-slate-900">Assignments</h2>
             {isOwner && (
-              <button
-                onClick={() => setShowAssignmentModal(true)}
-                className="flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Assignment
-              </button>
+              <Button size="sm" onClick={() => setShowAssignmentModal(true)}>
+                <Plus className="w-4 h-4" />
+                Add assignment
+              </Button>
             )}
           </div>
 
           {assignments.length === 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500">
-              No assignments yet
-            </div>
+            <Card className="p-6 text-center text-slate-500">No assignments yet</Card>
           ) : (
             <div className="space-y-3">
               {assignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="bg-white rounded-lg border border-gray-200 p-4"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                      <FileText className="w-5 h-5 text-gray-400 mr-2" />
-                      <span className="font-medium text-gray-900">{assignment.title}</span>
+                <Link key={assignment.id} href={`/courses/${courseId}/assignments/${assignment.id}`}>
+                  <Card className="p-4 transition hover:-translate-y-1 hover:shadow-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <FileText className="w-5 h-5 text-slate-400 mr-2" />
+                        <span className="font-medium text-slate-900">{assignment.title}</span>
+                      </div>
                     </div>
-                  </div>
-                  {assignment.description && (
-                    <p className="text-sm text-gray-600 mt-2 ml-7">
-                      {assignment.description}
-                    </p>
-                  )}
-                  {assignment.due_date && (
-                    <p className="text-sm text-gray-500 mt-2 ml-7">
-                      Due: {new Date(assignment.due_date).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
+                    {assignment.description && (
+                      <p className="text-sm text-slate-600 mt-2 ml-7">{assignment.description}</p>
+                    )}
+                    {assignment.due_date && (
+                      <p className="text-sm text-slate-500 mt-2 ml-7">
+                        Due: {new Date(assignment.due_date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </Card>
+                </Link>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {showModuleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Add Module</h2>
-            <form onSubmit={handleCreateModule}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={newModule.title}
-                  onChange={(e) => setNewModule({ ...newModule, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={newModule.description}
-                  onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModuleModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Add Module'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showModuleModal}
+        onClose={() => setShowModuleModal(false)}
+        title="Add module"
+        description="Create a new module for this course."
+      >
+        <form onSubmit={handleCreateModule} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+            <Input
+              type="text"
+              value={newModule.title}
+              onChange={(e) => setNewModule({ ...newModule, title: e.target.value })}
+              required
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+            <textarea
+              value={newModule.description}
+              onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
+              rows={2}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={() => setShowModuleModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Add module'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-      {showLessonModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Add Lesson</h2>
-            <form onSubmit={handleCreateLesson}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={newLesson.title}
-                  onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-                <textarea
-                  value={newLesson.content}
-                  onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLessonModal(false);
-                    setSelectedModuleId(null);
-                  }}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Add Lesson'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showLessonModal}
+        onClose={() => {
+          setShowLessonModal(false);
+          setSelectedModuleId(null);
+        }}
+        title="Add lesson"
+        description="Create a new lesson for this module."
+      >
+        <form onSubmit={handleCreateLesson} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+            <Input
+              type="text"
+              value={newLesson.title}
+              onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+              required
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Content</label>
+            <textarea
+              value={newLesson.content}
+              onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
+              rows={4}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setShowLessonModal(false);
+                setSelectedModuleId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Add lesson'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-      {showAssignmentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Add Assignment</h2>
-            <form onSubmit={handleCreateAssignment}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={newAssignment.title}
-                  onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={newAssignment.description}
-                  onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                <input
-                  type="date"
-                  value={newAssignment.due_date}
-                  onChange={(e) => setNewAssignment({ ...newAssignment, due_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAssignmentModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Add Assignment'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showAssignmentModal}
+        onClose={() => setShowAssignmentModal(false)}
+        title="Add assignment"
+        description="Create a new assignment for this course."
+      >
+        <form onSubmit={handleCreateAssignment} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+            <Input
+              type="text"
+              value={newAssignment.title}
+              onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
+              required
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+            <textarea
+              value={newAssignment.description}
+              onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
+              rows={3}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Due date</label>
+            <Input
+              type="date"
+              value={newAssignment.due_date}
+              onChange={(e) => setNewAssignment({ ...newAssignment, due_date: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={() => setShowAssignmentModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Add assignment'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

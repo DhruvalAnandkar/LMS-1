@@ -88,3 +88,8 @@ async def query_vectors(
 async def delete_vectors(ids: List[str], namespace: str = ""):
     index = get_pinecone_index()
     index.delete(ids=ids, namespace=namespace)
+
+
+async def delete_vectors_by_filter(filter_dict: dict, namespace: str = ""):
+    index = get_pinecone_index()
+    index.delete(filter=filter_dict, namespace=namespace)

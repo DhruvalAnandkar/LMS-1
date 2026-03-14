@@ -45,12 +45,19 @@ class SubmissionResponse(SubmissionBase):
     id: int
     assignment_id: int
     student_id: int
+    file_name: str
+    file_key: str
+    file_url: Optional[str] = None
+    content_type: str
+    size: int
     ai_grade: Optional[float] = None
     ai_feedback: Optional[str] = None
     final_grade: Optional[float] = None
     status: SubmissionStatus
     submitted_at: datetime
     graded_at: Optional[datetime] = None
+    student: Optional["SubmissionStudent"] = None
+    assignment: Optional["SubmissionAssignment"] = None
 
     class Config:
         from_attributes = True
@@ -64,3 +71,18 @@ class GradeUpdate(BaseModel):
 class AIGradeResponse(BaseModel):
     ai_grade: float
     ai_feedback: str
+
+
+class SubmissionStudent(BaseModel):
+    id: int
+    full_name: str
+    email: str
+
+
+class SubmissionAssignment(BaseModel):
+    id: int
+    title: str
+    course_id: int
+
+
+SubmissionResponse.model_rebuild()

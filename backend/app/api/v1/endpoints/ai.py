@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+import uuid
 
 from app.db.session import get_db
 from app.schemas.document import DocumentResponse, ChatMessage, ChatResponse
@@ -9,9 +10,13 @@ from app.services import course as course_service
 from app.services import assignment as assignment_service
 from app.services import document as document_service
 from app.services import document_service as doc_ingest
+from app.services.storage import BlobStorage
 from app.ai import chat as chat_service
 from app.ai import grader as grader_service
+from app.ai.embedding import delete_vectors_by_filter
 from app.core.security import get_current_user, RoleChecker
+from app.core.config import settings
+from app.core.audit import audit_log
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/courses/{course_id}", tags=["AI"])
@@ -34,18 +39,51 @@ async def upload_document(
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    result = await doc_ingest.ingest_document(course_id, file.filename, file)
-    
-    await document_service.create_document(
+    content = await file.read()
+    max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=400, detail="File exceeds size limit")
+
+    content_type = file.content_type or "application/octet-stream"
+    extracted_text = doc_ingest.extract_text_from_bytes(content, content_type)
+    if not extracted_text.strip():
+        raise HTTPException(status_code=400, detail="No text content found in file")
+
+    storage = BlobStorage()
+    blob_key = f"courses/{course_id}/documents/{uuid.uuid4()}_{file.filename}"
+    upload_result = storage.upload_bytes(
+        container=settings.AZURE_STORAGE_DOCUMENTS_CONTAINER,
+        blob_key=blob_key,
+        data=content,
+        content_type=content_type,
+    )
+
+    document = await document_service.create_document(
         db=db,
         course_id=course_id,
         title=file.filename,
         file_name=file.filename,
-        file_type=file.content_type,
-        content_text=""
+        file_type=content_type,
+        file_key=upload_result.blob_key,
+        file_url=upload_result.blob_url,
+        size=upload_result.size,
+        content_text=extracted_text,
     )
-    
-    return {"message": "Document uploaded successfully", **result}
+
+    await doc_ingest.ingest_document(course_id, document.id, file.filename, extracted_text)
+    audit_log("document_uploaded", current_user.id, {"document_id": document.id, "course_id": course_id})
+
+    return DocumentResponse(
+        id=document.id,
+        course_id=document.course_id,
+        title=document.title,
+        file_name=document.file_name,
+        file_type=document.file_type,
+        file_key=document.file_key,
+        file_url=storage.get_blob_url(settings.AZURE_STORAGE_DOCUMENTS_CONTAINER, document.file_key),
+        size=document.size,
+        uploaded_at=document.uploaded_at,
+    )
 
 
 @router.get("/documents", response_model=List[DocumentResponse])
@@ -59,7 +97,45 @@ async def list_documents(
         raise HTTPException(status_code=404, detail="Course not found")
     
     documents = await document_service.get_documents_by_course(db, course_id)
-    return documents
+    storage = BlobStorage()
+    return [
+        DocumentResponse(
+            id=doc.id,
+            course_id=doc.course_id,
+            title=doc.title,
+            file_name=doc.file_name,
+            file_type=doc.file_type,
+            file_key=doc.file_key,
+            file_url=storage.get_blob_url(settings.AZURE_STORAGE_DOCUMENTS_CONTAINER, doc.file_key),
+            size=doc.size,
+            uploaded_at=doc.uploaded_at,
+        )
+        for doc in documents
+    ]
+
+
+@router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    course_id: int,
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(teacher_admin)
+):
+    document = await document_service.get_document_by_id(db, document_id)
+    if not document or document.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+    course = await course_service.get_course_by_id(db, course_id)
+    if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    storage = BlobStorage()
+    storage.delete_blob(settings.AZURE_STORAGE_DOCUMENTS_CONTAINER, document.file_key)
+    await delete_vectors_by_filter(
+        {"course_id": str(course_id), "document_id": str(document_id)},
+        namespace=str(course_id)
+    )
+    await document_service.delete_document(db, document_id)
+    audit_log("document_deleted", current_user.id, {"document_id": document_id, "course_id": course_id})
 
 
 @router.post("/chat", response_model=ChatResponse)

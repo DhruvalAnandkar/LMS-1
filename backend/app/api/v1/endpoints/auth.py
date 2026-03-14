@@ -12,8 +12,10 @@ from app.core.security import (
     decode_token,
     get_current_user,
     verify_password,
-    get_password_hash,
+    hash_token,
+    validate_password,
 )
+from app.core.rate_limit import rate_limiter
 from app.core.config import settings
 from app.models.user import User
 
@@ -23,7 +25,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limiter(10, 60)),
 ):
     user = await user_service.authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -40,6 +43,7 @@ async def login(
     
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    await user_service.update_refresh_token(db, user.id, refresh_token)
     
     return Token(
         access_token=access_token,
@@ -50,7 +54,8 @@ async def login(
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     refresh_token: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limiter(10, 60)),
 ):
     token_data = decode_token(refresh_token)
     if token_data.token_type != "refresh":
@@ -65,9 +70,15 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive"
         )
+    if not user.refresh_token_hash or user.refresh_token_hash != hash_token(refresh_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is invalid"
+        )
     
     access_token = create_access_token(data={"sub": str(user.id)})
     new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    await user_service.update_refresh_token(db, user.id, new_refresh_token)
     
     return Token(
         access_token=access_token,
@@ -79,22 +90,24 @@ async def refresh_token(
 async def reset_password(
     password_data: PasswordReset,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limiter(5, 60)),
 ):
+    validate_password(password_data.new_password)
     if current_user.requires_password_reset:
-        if password_data.current_password is None:
+        if password_data.current_password:
+            user = await user_service.get_user_by_id(db, current_user.id)
+            if not verify_password(password_data.current_password, user.password_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Current password is incorrect"
+                )
+    else:
+        if not password_data.current_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current password required for first-time reset"
+                detail="Current password is required"
             )
-        
-        user = await user_service.get_user_by_id(db, current_user.id)
-        if not verify_password(password_data.current_password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current password is incorrect"
-            )
-    elif password_data.current_password:
         user = await user_service.get_user_by_id(db, current_user.id)
         if not verify_password(password_data.current_password, user.password_hash):
             raise HTTPException(

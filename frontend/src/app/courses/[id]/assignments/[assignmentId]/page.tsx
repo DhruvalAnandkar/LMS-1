@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { ArrowLeft, FileText, Upload, Check, X, Sparkles } from 'lucide-react';
+import { ArrowLeft, FileText, Upload, Check, Sparkles, DownloadCloud } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface Assignment {
   id: number;
@@ -18,11 +20,14 @@ interface Submission {
   id: number;
   student_id: number;
   assignment_id: number;
-  file_path: string | null;
+  file_name: string;
+  file_url?: string | null;
   content: string | null;
   submitted_at: string;
-  grade: number | null;
-  feedback: string | null;
+  ai_grade: number | null;
+  ai_feedback: string | null;
+  final_grade: number | null;
+  status: string;
   graded_at: string | null;
   student?: {
     id: number;
@@ -55,17 +60,20 @@ export default function AssignmentDetailPage() {
 
   const fetchAssignmentData = async () => {
     try {
-      const [assignmentRes, submissionsRes] = await Promise.all([
-        api.get(`/courses/${courseId}/assignments/${assignmentId}`),
-        api.get(`/courses/${courseId}/assignments/${assignmentId}/submissions`),
-      ]);
+      const assignmentRes = await api.get(
+        `/courses/${courseId}/assignments/${assignmentId}`
+      );
       setAssignment(assignmentRes.data);
-      
+
       if (isTeacher) {
+        const submissionsRes = await api.get(
+          `/courses/${courseId}/assignments/${assignmentId}/submissions`
+        );
         setSubmissions(submissionsRes.data);
       } else {
-        const mySub = submissionsRes.data.find(
-          (s: Submission) => s.student_id === user?.id
+        const mySubsRes = await api.get('/submissions');
+        const mySub = mySubsRes.data.find(
+          (s: Submission) => s.assignment_id === Number(assignmentId)
         );
         setMySubmission(mySub || null);
       }
@@ -91,11 +99,9 @@ export default function AssignmentDetailPage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await api.post(
-        `/courses/${courseId}/assignments/${assignmentId}/submissions`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+      const response = await api.post(`/assignments/${assignmentId}/submit`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       setMySubmission(response.data);
       setSelectedFile(null);
@@ -111,9 +117,7 @@ export default function AssignmentDetailPage() {
   const handleGradeWithAI = async (submissionId: number) => {
     setGrading(submissionId);
     try {
-      await api.post(
-        `/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}/grade`
-      );
+      await api.post(`/submissions/${submissionId}/grade/ai`);
       fetchAssignmentData();
     } catch (error) {
       console.error('Failed to grade:', error);
@@ -122,12 +126,18 @@ export default function AssignmentDetailPage() {
     }
   };
 
+  const handleBatchGrade = async () => {
+    try {
+      await api.post(`/assignments/${assignmentId}/grade/ai`);
+      fetchAssignmentData();
+    } catch (error) {
+      console.error('Failed to batch grade:', error);
+    }
+  };
+
   const handleApproveGrade = async (submissionId: number) => {
     try {
-      await api.put(
-        `/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}`,
-        { approved: true }
-      );
+      await api.post(`/submissions/${submissionId}/approve-grade`);
       fetchAssignmentData();
     } catch (error) {
       console.error('Failed to approve grade:', error);
@@ -137,7 +147,7 @@ export default function AssignmentDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
       </div>
     );
   }
@@ -148,128 +158,159 @@ export default function AssignmentDetailPage() {
 
   return (
     <div>
-      <button
-        onClick={() => router.push(`/courses/${courseId}`)}
-        className="flex items-center text-gray-600 hover:text-indigo-600 mb-4"
-      >
-        <ArrowLeft className="w-4 h-4 mr-1" />
-        Back to Course
-      </button>
+      <Button variant="ghost" onClick={() => router.push(`/courses/${courseId}`)} className="mb-4">
+        <ArrowLeft className="w-4 h-4" />
+        Back to course
+      </Button>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{assignment.title}</h1>
-        {assignment.description && (
-          <p className="text-gray-600 mb-4">{assignment.description}</p>
-        )}
+      <Card className="p-6 mb-6">
+        <h1 className="text-3xl font-semibold text-slate-900 font-display mb-2">
+          {assignment.title}
+        </h1>
+        {assignment.description && <p className="text-slate-600 mb-4">{assignment.description}</p>}
         {assignment.due_date && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             Due: {new Date(assignment.due_date).toLocaleDateString()}
           </p>
         )}
-      </div>
+      </Card>
 
       {isTeacher ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Submissions</h2>
+        <Card className="overflow-hidden">
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">Submissions</h2>
+            <Button variant="secondary" onClick={handleBatchGrade}>
+              <Sparkles className="w-4 h-4" />
+              Grade all with AI
+            </Button>
           </div>
           {submissions.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No submissions yet</div>
+            <div className="p-6 text-center text-slate-500">No submissions yet</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-100">
               {submissions.map((submission) => (
                 <div key={submission.id} className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center">
-                      <FileText className="w-5 h-5 text-gray-400 mr-2" />
-                      <span className="font-medium text-gray-900">
+                      <FileText className="w-5 h-5 text-slate-400 mr-2" />
+                      <span className="font-medium text-slate-900">
                         {submission.student?.full_name || `Student ${submission.student_id}`}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-slate-500">
                       {new Date(submission.submitted_at).toLocaleDateString()}
                     </span>
                   </div>
-                  {submission.grade !== null && (
+                  {submission.final_grade !== null ? (
                     <div className="ml-7 mb-2">
-                      <span className="font-medium text-gray-900">Grade: {submission.grade}/100</span>
-                      {submission.feedback && (
-                        <p className="text-sm text-gray-600 mt-1">{submission.feedback}</p>
+                      <span className="font-medium text-slate-900">
+                        Final grade: {submission.final_grade}/100
+                      </span>
+                      {submission.ai_feedback && (
+                        <p className="text-sm text-slate-600 mt-1">{submission.ai_feedback}</p>
                       )}
                     </div>
-                  )}
-                  <div className="ml-7 flex gap-2">
-                    {submission.grade === null ? (
-                      <button
-                        onClick={() => handleGradeWithAI(submission.id)}
-                        disabled={grading === submission.id}
-                        className="flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  ) : submission.ai_grade !== null ? (
+                    <div className="ml-7 mb-2">
+                      <span className="font-medium text-slate-900">
+                        AI grade: {submission.ai_grade}/100
+                      </span>
+                      {submission.ai_feedback && (
+                        <p className="text-sm text-slate-600 mt-1">{submission.ai_feedback}</p>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="ml-7 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleGradeWithAI(submission.id)}
+                      disabled={grading === submission.id}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      {grading === submission.id ? 'Grading...' : 'Grade with AI'}
+                    </Button>
+                    {submission.ai_grade !== null && (
+                      <Button size="sm" variant="secondary" onClick={() => handleApproveGrade(submission.id)}>
+                        <Check className="w-4 h-4" />
+                        Approve grade
+                      </Button>
+                    )}
+                    {submission.file_url && (
+                      <a
+                        href={submission.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        <Sparkles className="w-4 h-4 mr-1" />
-                        {grading === submission.id ? 'Grading...' : 'Grade with AI'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleApproveGrade(submission.id)}
-                        className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Approve Grade
-                      </button>
+                        <DownloadCloud className="w-4 h-4" />
+                        Download
+                      </a>
                     )}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </Card>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Submission</h2>
-          
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Your submission</h2>
+
           {mySubmission ? (
             <div className="mb-4">
               <div className="flex items-center mb-2">
-                <FileText className="w-5 h-5 text-gray-400 mr-2" />
-                <span className="text-gray-900">Submitted</span>
+                <FileText className="w-5 h-5 text-slate-400 mr-2" />
+                <span className="text-slate-900">{mySubmission.file_name}</span>
               </div>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm text-slate-500 mb-2">
                 Submitted: {new Date(mySubmission.submitted_at).toLocaleDateString()}
               </p>
-              {mySubmission.grade !== null && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="font-medium text-gray-900">Grade: {mySubmission.grade}/100</p>
-                  {mySubmission.feedback && (
-                    <p className="text-sm text-gray-600 mt-1">{mySubmission.feedback}</p>
+              {mySubmission.final_grade !== null ? (
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                  <p className="font-medium text-slate-900">Grade: {mySubmission.final_grade}/100</p>
+                  {mySubmission.ai_feedback && (
+                    <p className="text-sm text-slate-600 mt-1">{mySubmission.ai_feedback}</p>
                   )}
                 </div>
+              ) : mySubmission.ai_grade !== null ? (
+                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                  <p className="font-medium text-slate-900">AI grade pending approval</p>
+                  <p className="text-sm text-slate-600 mt-1">{mySubmission.ai_grade}/100</p>
+                </div>
+              ) : null}
+              {mySubmission.file_url && (
+                <a
+                  href={mySubmission.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 mt-4"
+                >
+                  <DownloadCloud className="w-4 h-4" />
+                  Download submission
+                </a>
               )}
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Submit Your Work
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Submit your work
                 </label>
                 <input
                   id="file-input"
                   type="file"
                   accept=".pdf,.docx,.txt"
                   onChange={handleFileChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 />
               </div>
-              <button
-                type="submit"
-                disabled={!selectedFile || submitting}
-                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-              >
-                <Upload className="w-4 h-4 mr-2" />
+              <Button type="submit" disabled={!selectedFile || submitting}>
+                <Upload className="w-4 h-4" />
                 {submitting ? 'Submitting...' : 'Submit'}
-              </button>
+              </Button>
             </form>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );

@@ -6,7 +6,11 @@ import { useAuthStore } from '@/lib/auth-store';
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, fetchUser } = useAuthStore();
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -19,8 +23,8 @@ export default function Home() {
   }, [isAuthenticated, isLoading, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    <div className="min-h-screen flex items-center justify-center bg-transparent">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
     </div>
   );
 }

@@ -13,13 +13,13 @@ from app.services import module as module_service
 from app.core.security import get_current_user, RoleChecker
 from app.models.user import User, UserRole
 
-router = APIRouter(prefix="/lessons/{lesson_id}/attendance", tags=["Attendance"])
+router = APIRouter(tags=["Attendance"])
 
 teacher_admin = RoleChecker([UserRole.TEACHER, UserRole.ADMIN])
 student_only = RoleChecker([UserRole.STUDENT])
 
 
-@router.get("", response_model=List[AttendanceResponse])
+@router.get("/lessons/{lesson_id}/attendance", response_model=List[AttendanceResponse])
 async def get_lesson_attendance(
     lesson_id: int,
     db: AsyncSession = Depends(get_db),
@@ -33,7 +33,7 @@ async def get_lesson_attendance(
     return attendances
 
 
-@router.post("", response_model=List[AttendanceResponse])
+@router.post("/lessons/{lesson_id}/attendance", response_model=List[AttendanceResponse])
 async def mark_bulk_attendance(
     lesson_id: int,
     bulk_data: BulkAttendanceCreate,
@@ -50,7 +50,7 @@ async def mark_bulk_attendance(
     return attendances
 
 
-@router.get("/summary", response_model=List[AttendanceSummary])
+@router.get("/courses/{course_id}/attendance", response_model=List[AttendanceSummary])
 async def get_course_attendance_summary(
     course_id: int,
     db: AsyncSession = Depends(get_db),
@@ -67,7 +67,7 @@ async def get_course_attendance_summary(
     return summaries
 
 
-@router.get("/my/summary", response_model=AttendanceSummary)
+@router.get("/my/attendance", response_model=AttendanceSummary)
 async def get_my_attendance_summary(
     course_id: int,
     db: AsyncSession = Depends(get_db),

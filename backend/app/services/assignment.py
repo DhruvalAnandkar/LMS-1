@@ -2,6 +2,7 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.assignment import Assignment
 from app.models.submission import Submission, SubmissionStatus
@@ -59,21 +60,27 @@ async def delete_assignment(db: AsyncSession, assignment_id: int) -> bool:
 
 async def get_submission_by_id(db: AsyncSession, submission_id: int) -> Optional[Submission]:
     result = await db.execute(
-        select(Submission).where(Submission.id == submission_id)
+        select(Submission)
+        .options(selectinload(Submission.student), selectinload(Submission.assignment))
+        .where(Submission.id == submission_id)
     )
     return result.scalars().first()
 
 
 async def get_submissions_by_assignment(db: AsyncSession, assignment_id: int) -> List[Submission]:
     result = await db.execute(
-        select(Submission).where(Submission.assignment_id == assignment_id)
+        select(Submission)
+        .options(selectinload(Submission.student), selectinload(Submission.assignment))
+        .where(Submission.assignment_id == assignment_id)
     )
     return list(result.scalars().all())
 
 
 async def get_submissions_by_student(db: AsyncSession, student_id: int) -> List[Submission]:
     result = await db.execute(
-        select(Submission).where(Submission.student_id == student_id)
+        select(Submission)
+        .options(selectinload(Submission.assignment))
+        .where(Submission.student_id == student_id)
     )
     return list(result.scalars().all())
 
@@ -82,6 +89,7 @@ async def get_pending_submissions(db: AsyncSession, course_id: int) -> List[Subm
     result = await db.execute(
         select(Submission)
         .join(Assignment)
+        .options(selectinload(Submission.student), selectinload(Submission.assignment))
         .where(
             Assignment.course_id == course_id,
             Submission.status == SubmissionStatus.PENDING_REVIEW
@@ -90,11 +98,36 @@ async def get_pending_submissions(db: AsyncSession, course_id: int) -> List[Subm
     return list(result.scalars().all())
 
 
-async def create_submission(db: AsyncSession, assignment_id: int, student_id: int, content: str) -> Submission:
+async def get_submissions_by_course(db: AsyncSession, course_id: int) -> List[Submission]:
+    result = await db.execute(
+        select(Submission)
+        .join(Assignment)
+        .options(selectinload(Submission.student), selectinload(Submission.assignment))
+        .where(Assignment.course_id == course_id)
+    )
+    return list(result.scalars().all())
+
+
+async def create_submission(
+    db: AsyncSession,
+    assignment_id: int,
+    student_id: int,
+    content: str,
+    file_name: str,
+    file_key: str,
+    file_url: str | None,
+    content_type: str,
+    size: int,
+) -> Submission:
     db_submission = Submission(
         assignment_id=assignment_id,
         student_id=student_id,
         content=content,
+        file_name=file_name,
+        file_key=file_key,
+        file_url=file_url,
+        content_type=content_type,
+        size=size,
     )
     db.add(db_submission)
     await db.flush()
@@ -114,6 +147,7 @@ async def update_ai_grade(
     
     db_submission.ai_grade = ai_grade
     db_submission.ai_feedback = ai_feedback
+    db_submission.status = SubmissionStatus.PENDING_REVIEW
     await db.flush()
     await db.refresh(db_submission)
     return db_submission

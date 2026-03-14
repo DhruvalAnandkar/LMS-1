@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
 
+    # Azure Blob Storage
+    AZURE_STORAGE_CONNECTION_STRING: str = ""
+    AZURE_STORAGE_ACCOUNT_NAME: str = ""
+    AZURE_STORAGE_ACCOUNT_KEY: str = ""
+    AZURE_STORAGE_DOCUMENTS_CONTAINER: str = "lms-documents"
+    AZURE_STORAGE_SUBMISSIONS_CONTAINER: str = "lms-submissions"
+    AZURE_STORAGE_USE_SAS: bool = True
+    AZURE_STORAGE_SAS_EXPIRY_MINUTES: int = 60
+
     # Google AI
     GOOGLE_API_KEY: str = ""
 
@@ -36,6 +45,9 @@ class Settings(BaseSettings):
 
     # CORS
     BACKEND_CORS_ORIGINS: list = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+    # Upload limits (MB)
+    MAX_UPLOAD_MB: int = 10
 
     class Config:
         env_file = ".env"

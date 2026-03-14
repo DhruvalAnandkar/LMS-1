@@ -3,8 +3,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { BookOpen, Users, GraduationCap, LayoutDashboard, LogOut, FileText, Shield } from 'lucide-react';
+import { BookOpen, GraduationCap, LayoutDashboard, LogOut, FileText, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading, logout, fetchUser } = useAuthStore();
@@ -25,8 +26,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
       </div>
     );
   }
@@ -49,51 +50,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-indigo-600">AI LMS</h1>
-              <div className="ml-10 flex items-baseline space-x-4">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-100"
-                  >
-                    <item.icon className="mr-2 h-4 w-4" />
-                    {item.label}
-                  </Link>
-                ))}
+    <div className="min-h-screen">
+      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-10">
+            <h1 className="text-xl font-semibold text-slate-900 font-display">AI LMS</h1>
+            <div className="hidden items-center gap-2 md:flex">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden items-center gap-3 sm:flex">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                {user.full_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="text-xs">
+                <p className="font-semibold text-slate-900">{user.full_name}</p>
+                <p className="text-slate-500 capitalize">{user.role}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <span className="text-indigo-600 font-medium">
-                    {user.full_name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  <p className="font-medium text-gray-900">{user.full_name}</p>
-                  <p className="text-gray-500 capitalize">{user.role}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  logout();
-                  router.push('/login');
-                }}
-                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-              >
-                <LogOut size={20} />
-              </button>
-            </div>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                logout();
+                router.push('/login');
+              }}
+            >
+              <LogOut size={18} />
+              Sign out
+            </Button>
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
     </div>

@@ -23,6 +23,9 @@ async def create_document(
     title: str,
     file_name: str,
     file_type: str,
+    file_key: str,
+    file_url: str | None,
+    size: int,
     content_text: str
 ) -> Document:
     db_document = Document(
@@ -30,6 +33,9 @@ async def create_document(
         title=title,
         file_name=file_name,
         file_type=file_type,
+        file_key=file_key,
+        file_url=file_url,
+        size=size,
         content_text=content_text,
     )
     db.add(db_document)

@@ -19,6 +19,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
+    refresh_token_hash = Column(String(255), nullable=True)
     role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.STUDENT)
     requires_password_reset = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)

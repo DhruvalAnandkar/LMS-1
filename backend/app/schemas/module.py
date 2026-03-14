@@ -23,6 +23,7 @@ class ModuleResponse(ModuleBase):
     id: int
     course_id: int
     created_at: datetime
+    lessons: list["LessonResponse"] = []
 
     class Config:
         from_attributes = True
@@ -51,3 +52,6 @@ class LessonResponse(LessonBase):
 
     class Config:
         from_attributes = True
+
+
+ModuleResponse.model_rebuild()
