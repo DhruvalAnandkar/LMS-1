@@ -2,6 +2,48 @@ from typing import List, Dict, Any
 from app.ai.embedding import embed_text, query_vectors
 
 
+async def _chat_google(system_prompt: str, user_message: str) -> str:
+    """Call Google Generative AI (Gemini)."""
+    import asyncio
+    import google.generativeai as genai
+    from app.core.config import settings
+
+    if not settings.GOOGLE_API_KEY:
+        raise ValueError("GOOGLE_API_KEY is not configured")
+
+    genai.configure(api_key=settings.GOOGLE_API_KEY)
+    model = genai.GenerativeModel(
+        model_name=settings.GOOGLE_AI_MODEL,
+        system_instruction=system_prompt,
+    )
+    response = await asyncio.to_thread(model.generate_content, user_message)
+    return response.text
+
+
+async def _chat_azure(system_prompt: str, user_message: str, settings) -> str:
+    """Call Azure OpenAI."""
+    from openai import AsyncAzureOpenAI
+
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise ValueError("Azure OpenAI credentials are not configured")
+
+    client = AsyncAzureOpenAI(
+        api_key=settings.AZURE_OPENAI_KEY,
+        api_version=settings.AZURE_OPENAI_API_VERSION,
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
+    )
+    response = await client.chat.completions.create(
+        model=settings.AZURE_OPENAI_DEPLOYMENT,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ],
+        temperature=0.7,
+        max_tokens=1000
+    )
+    return response.choices[0].message.content
+
+
 async def process_document(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
     chunks = []
     start = 0
@@ -16,43 +58,6 @@ async def process_document(text: str, chunk_size: int = 500, overlap: int = 50) 
     return chunks
 
 
-# ── Provider-agnostic chat helper ─────────────────────────────────────
-
-def _chat_google(system_prompt: str, user_message: str) -> str:
-    """Call Google Generative AI (Gemini)."""
-    import google.generativeai as genai
-    from app.core.config import settings
-
-    genai.configure(api_key=settings.GOOGLE_API_KEY)
-    model = genai.GenerativeModel(
-        model_name=settings.GOOGLE_AI_MODEL,
-        system_instruction=system_prompt,
-    )
-    response = model.generate_content(user_message)
-    return response.text
-
-
-def _chat_azure(system_prompt: str, user_message: str, settings) -> str:
-    """Call Azure OpenAI."""
-    from openai import AzureOpenAI
-
-    client = AzureOpenAI(
-        api_key=settings.AZURE_OPENAI_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION,
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-    )
-    response = client.chat.completions.create(
-        model=settings.AZURE_OPENAI_DEPLOYMENT,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ],
-        temperature=0.7,
-        max_tokens=1000,
-    )
-    return response.choices[0].message.content
-
-
 # ── Public entry-point ────────────────────────────────────────────────
 
 async def chat_with_course(
@@ -61,7 +66,7 @@ async def chat_with_course(
     course_context: str = "",
 ) -> str:
     from app.core.config import settings
-
+    
     query_embedding = await embed_text(user_message)
 
     context_chunks = await query_vectors(
@@ -86,9 +91,10 @@ Course Additional Context:
 {course_context}
 
 Be helpful, clear, and educational in your responses."""
-
-    # ── Route to the configured AI provider ──
-    if settings.AI_PROVIDER == "google":
-        return _chat_google(system_prompt, user_message)
-    else:
-        return _chat_azure(system_prompt, user_message, settings)
+    
+    provider = settings.AI_PROVIDER.lower().strip()
+    if provider == "google":
+        return await _chat_google(system_prompt, user_message)
+    if provider != "azure":
+        raise ValueError(f"Unsupported AI_PROVIDER: {settings.AI_PROVIDER}")
+    return await _chat_azure(system_prompt, user_message, settings)

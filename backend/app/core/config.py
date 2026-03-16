@@ -22,13 +22,13 @@ class Settings(BaseSettings):
     # --------------- AI Provider Toggle ---------------
     AI_PROVIDER: str = "azure"  # "azure" or "google"
 
-    # Azure OpenAI (optional — only required when AI_PROVIDER == "azure")
+    # Azure OpenAI
     AZURE_OPENAI_KEY: Optional[str] = ""
     AZURE_OPENAI_ENDPOINT: Optional[str] = ""
     AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
 
-    # Google AI (optional — only required when AI_PROVIDER == "google")
+    # Google AI
     GOOGLE_API_KEY: Optional[str] = ""
     GOOGLE_AI_MODEL: str = "gemini-2.0-flash"
 
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     USE_LOCAL_STORAGE: bool = False
     LOCAL_STORAGE_PATH: str = "./uploads"
 
-    # Azure Blob Storage (optional — only required when USE_LOCAL_STORAGE is False)
+    # Azure Blob Storage
     AZURE_STORAGE_CONNECTION_STRING: Optional[str] = ""
     AZURE_STORAGE_ACCOUNT_NAME: Optional[str] = ""
     AZURE_STORAGE_ACCOUNT_KEY: Optional[str] = ""

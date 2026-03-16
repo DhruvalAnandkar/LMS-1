@@ -1,12 +1,14 @@
 import json
 from typing import Dict, Any, Tuple
 from app.ai.embedding import embed_text, query_vectors
+from loguru import logger
 
 
 # ── Provider-specific grading helpers ─────────────────────────────────
 
-def _grade_google(system_prompt: str, submission_content: str) -> dict:
+async def _grade_google(system_prompt: str, submission_content: str) -> dict:
     """Grade using Google Generative AI (Gemini)."""
+    import asyncio
     import google.generativeai as genai
     from app.core.config import settings
 
@@ -20,20 +22,24 @@ def _grade_google(system_prompt: str, submission_content: str) -> dict:
             response_mime_type="application/json",
         ),
     )
-    response = model.generate_content(submission_content)
+    response = await asyncio.to_thread(model.generate_content, submission_content)
     return json.loads(response.text)
 
 
-def _grade_azure(system_prompt: str, submission_content: str, settings) -> dict:
+async def _grade_azure(system_prompt: str, submission_content: str, settings) -> dict:
     """Grade using Azure OpenAI."""
-    from openai import AzureOpenAI
+    from openai import AsyncAzureOpenAI
 
-    client = AzureOpenAI(
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise ValueError("Azure OpenAI credentials are not configured")
+
+    client = AsyncAzureOpenAI(
         api_key=settings.AZURE_OPENAI_KEY,
         api_version=settings.AZURE_OPENAI_API_VERSION,
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
     )
-    response = client.chat.completions.create(
+    
+    response = await client.chat.completions.create(
         model=settings.AZURE_OPENAI_DEPLOYMENT,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -57,7 +63,7 @@ async def grade_submission(
     max_grade: float = 100.0,
 ) -> Tuple[float, str]:
     from app.core.config import settings
-
+    
     course_context = ""
     try:
         query_emb = await embed_text(submission_content)
@@ -94,12 +100,16 @@ Respond in the following JSON format:
 }}
 
 Be fair, objective, and constructive in your evaluation."""
-
-    # ── Route to the configured AI provider ──
-    if settings.AI_PROVIDER == "google":
-        result = _grade_google(system_prompt, submission_content)
-    else:
-        result = _grade_azure(system_prompt, submission_content, settings)
+    
+    provider = settings.AI_PROVIDER.lower().strip()
+    try:
+        if provider == "google":
+            result = await _grade_google(system_prompt, submission_content)
+        else:
+            result = await _grade_azure(system_prompt, submission_content, settings)
+    except Exception as exc:
+        logger.exception(f"{provider.capitalize()} AI grading failed")
+        raise RuntimeError(f"{provider.capitalize()} AI grading failed") from exc
 
     grade = float(result.get("grade", 0))
     feedback = str(result.get("feedback", ""))
