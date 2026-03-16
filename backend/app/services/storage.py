@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from azure.core.exceptions import ResourceExistsError
@@ -92,7 +92,9 @@ class BlobStorage:
                 blob_name=blob_key,
                 account_key=self._account_key,
                 permission=BlobSasPermissions(read=True),
-                expiry=datetime.utcnow() + timedelta(minutes=settings.AZURE_STORAGE_SAS_EXPIRY_MINUTES),
+                expiry=datetime.now(timezone.utc) + timedelta(
+                    minutes=settings.AZURE_STORAGE_SAS_EXPIRY_MINUTES
+                ),
             )
             return f"{blob_client.url}?{sas_token}"
         return blob_client.url

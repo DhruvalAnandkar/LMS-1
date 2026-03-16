@@ -1,4 +1,6 @@
 from typing import List
+import os
+import re
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +19,7 @@ from app.core.security import get_current_user, RoleChecker
 from app.core.config import settings
 from app.core.audit import audit_log
 from app.models.user import User, UserRole
+from loguru import logger
 
 router = APIRouter(prefix="/courses/{course_id}/assignments", tags=["Assignments"])
 
@@ -24,10 +27,34 @@ teacher_admin = RoleChecker([UserRole.TEACHER, UserRole.ADMIN])
 student_only = RoleChecker([UserRole.STUDENT])
 
 
-def _submission_file_url(storage: BlobStorage, file_key: str) -> str | None:
-    if file_key == "inline":
+def _submission_file_url(storage: BlobStorage, file_key: str | None) -> str | None:
+    if not file_key or file_key == "inline":
         return None
     return storage.get_blob_url(settings.AZURE_STORAGE_SUBMISSIONS_CONTAINER, file_key)
+
+
+def _sanitize_filename(filename: str | None) -> str:
+    if not filename:
+        return "upload"
+    base = os.path.basename(filename).replace("\x00", "")
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", base).strip("._")
+    if not safe:
+        safe = "upload"
+    return safe[:120]
+
+
+async def _read_upload_bytes(file: UploadFile, max_bytes: int) -> bytes:
+    size = 0
+    chunks: list[bytes] = []
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > max_bytes:
+            raise HTTPException(status_code=400, detail="File exceeds size limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.get("", response_model=List[AssignmentResponse])
@@ -85,6 +112,8 @@ async def update_assignment(
         raise HTTPException(status_code=404, detail="Assignment not found")
     
     course = await course_service.get_course_by_id(db, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
     
@@ -104,6 +133,8 @@ async def delete_assignment(
         raise HTTPException(status_code=404, detail="Assignment not found")
     
     course = await course_service.get_course_by_id(db, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
     
@@ -125,6 +156,9 @@ async def submit_assignment(
     is_enrolled = await course_service.is_enrolled(db, course_id, current_user.id)
     if not is_enrolled:
         raise HTTPException(status_code=403, detail="Not enrolled in this course")
+
+    if not submission.content.strip():
+        raise HTTPException(status_code=400, detail="Submission content is required")
     
     created_submission = await assignment_service.create_submission(
         db, assignment_id, current_user.id, submission.content, "text.txt", "inline", None, "text/plain", len(submission.content)
@@ -144,6 +178,8 @@ async def list_submissions(
         raise HTTPException(status_code=404, detail="Assignment not found")
     
     course = await course_service.get_course_by_id(db, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
     
@@ -169,7 +205,6 @@ async def list_submissions(
             student=sub.student and {
                 "id": sub.student.id,
                 "full_name": sub.student.full_name,
-                "email": sub.student.email,
             },
             assignment=sub.assignment and {
                 "id": sub.assignment.id,
@@ -206,6 +241,8 @@ async def update_assignment_by_id(
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
     course = await course_service.get_course_by_id(db, assignment.course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
     updated_assignment = await assignment_service.update_assignment(db, assignment_id, assignment_update)
@@ -227,10 +264,8 @@ async def submit_assignment_file(
     if not is_enrolled:
         raise HTTPException(status_code=403, detail="Not enrolled in this course")
 
-    content = await file.read()
     max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
-    if len(content) > max_bytes:
-        raise HTTPException(status_code=400, detail="File exceeds size limit")
+    content = await _read_upload_bytes(file, max_bytes)
 
     content_type = file.content_type or "application/octet-stream"
     extracted_text = doc_ingest.extract_text_from_bytes(content, content_type)
@@ -238,7 +273,11 @@ async def submit_assignment_file(
         raise HTTPException(status_code=400, detail="No text content found in file")
 
     storage = BlobStorage()
-    blob_key = f"courses/{assignment.course_id}/assignments/{assignment_id}/submissions/{uuid.uuid4()}_{file.filename}"
+    safe_filename = _sanitize_filename(file.filename)
+    blob_key = (
+        f"courses/{assignment.course_id}/assignments/{assignment_id}/submissions/"
+        f"{uuid.uuid4()}_{safe_filename}"
+    )
     upload_result = storage.upload_bytes(
         container=settings.AZURE_STORAGE_SUBMISSIONS_CONTAINER,
         blob_key=blob_key,
@@ -251,7 +290,7 @@ async def submit_assignment_file(
         assignment_id,
         current_user.id,
         extracted_text,
-        file.filename,
+        safe_filename,
         upload_result.blob_key,
         upload_result.blob_url,
         content_type,
@@ -286,6 +325,8 @@ async def grade_assignment_submissions(
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
     course = await course_service.get_course_by_id(db, assignment.course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -295,14 +336,24 @@ async def grade_assignment_submissions(
 
     responses: List[AIGradeResponse] = []
     for submission in submissions:
-        grade, feedback = await grader_service.grade_submission(
-            submission_content=submission.content,
-            assignment_title=assignment.title,
-            assignment_description=assignment.description or "",
-            assignment_rubric=assignment.rubric or "",
-            course_id=assignment.course_id
-        )
-        await assignment_service.update_ai_grade(db, submission.id, grade, feedback)
-        responses.append(AIGradeResponse(ai_grade=grade, ai_feedback=feedback))
+        try:
+            grade, feedback = await grader_service.grade_submission(
+                submission_content=submission.content,
+                assignment_title=assignment.title,
+                assignment_description=assignment.description or "",
+                assignment_rubric=assignment.rubric or "",
+                course_id=assignment.course_id
+            )
+            await assignment_service.update_ai_grade(db, submission.id, grade, feedback)
+            responses.append(AIGradeResponse(ai_grade=grade, ai_feedback=feedback))
+        except Exception as exc:
+            logger.exception("AI grading failed for submission {id}", id=submission.id)
+            await assignment_service.update_ai_grade(
+                db,
+                submission.id,
+                None,
+                "AI grading failed. Please retry.",
+            )
+            responses.append(AIGradeResponse(ai_grade=None, ai_feedback="AI grading failed"))
     audit_log("ai_grade_batch_generated", current_user.id, {"assignment_id": assignment_id})
     return responses

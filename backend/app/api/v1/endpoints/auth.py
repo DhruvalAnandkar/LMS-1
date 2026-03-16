@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+import secrets
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,7 +71,8 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive"
         )
-    if not user.refresh_token_hash or user.refresh_token_hash != hash_token(refresh_token):
+    refresh_hash = hash_token(refresh_token)
+    if not user.refresh_token_hash or not secrets.compare_digest(user.refresh_token_hash, refresh_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token is invalid"

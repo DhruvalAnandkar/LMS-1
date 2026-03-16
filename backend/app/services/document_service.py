@@ -28,7 +28,10 @@ def extract_text_from_bytes(content: bytes, content_type: str) -> str:
             raise HTTPException(status_code=400, detail=f"Failed to extract Word text: {str(e)}")
 
     if content_type == "text/plain":
-        return content.decode("utf-8")
+        try:
+            return content.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"Failed to decode text file: {str(e)}")
 
     raise HTTPException(status_code=400, detail="Unsupported file type. Use PDF, DOCX, or TXT")
 

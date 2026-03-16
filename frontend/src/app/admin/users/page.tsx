@@ -148,8 +148,11 @@ export default function UsersPage() {
       >
         <form onSubmit={handleCreate} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Full name</label>
+            <label htmlFor="full_name" className="block text-sm font-medium text-slate-700 mb-2">
+              Full name
+            </label>
             <Input
+              id="full_name"
               type="text"
               value={newUser.full_name}
               onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
@@ -157,8 +160,11 @@ export default function UsersPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              Email
+            </label>
             <Input
+              id="email"
               type="email"
               value={newUser.email}
               onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
@@ -166,8 +172,11 @@ export default function UsersPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              Password
+            </label>
             <Input
+              id="password"
               type="password"
               value={newUser.password}
               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
@@ -175,8 +184,11 @@ export default function UsersPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Role</label>
+            <label htmlFor="role" className="block text-sm font-medium text-slate-700 mb-2">
+              Role
+            </label>
             <select
+              id="role"
               value={newUser.role}
               onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"

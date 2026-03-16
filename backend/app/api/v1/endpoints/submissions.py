@@ -1,4 +1,7 @@
 from typing import List
+import asyncio
+import httpx
+from loguru import logger
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,13 +17,45 @@ from app.ai import grader as grader_service
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
-course_router = APIRouter(prefix="/courses/{course_id}/submissions", tags=["Submissions"])
+course_submissions_router = APIRouter(
+    prefix="/courses/{course_id}/submissions",
+    tags=["Submissions"]
+)
 
 
-def _submission_file_url(storage: BlobStorage, file_key: str) -> str | None:
-    if file_key == "inline":
+def _submission_file_url(storage: BlobStorage, file_key: str | None) -> str | None:
+    if not file_key or file_key == "inline":
         return None
     return storage.get_blob_url(settings.AZURE_STORAGE_SUBMISSIONS_CONTAINER, file_key)
+
+
+async def _grade_with_retry(
+    submission,
+    assignment,
+    max_attempts: int = 3,
+    base_delay: float = 0.5,
+):
+    last_exc: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            return await grader_service.grade_submission(
+                submission_content=submission.content,
+                assignment_title=assignment.title,
+                assignment_description=assignment.description or "",
+                assignment_rubric=assignment.rubric or "",
+                course_id=assignment.course_id
+            )
+        except (asyncio.TimeoutError, httpx.HTTPError) as exc:
+            last_exc = exc
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(base_delay * (2 ** attempt))
+                continue
+            raise
+        except Exception as exc:
+            last_exc = exc
+            raise
+    if last_exc:
+        raise last_exc
 
 teacher_admin = RoleChecker([UserRole.TEACHER, UserRole.ADMIN])
 student_only = RoleChecker([UserRole.STUDENT])
@@ -148,7 +183,11 @@ async def approve_grade(
         raise HTTPException(status_code=404, detail="Submission not found")
     
     assignment = await assignment_service.get_assignment_by_id(db, submission.assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
     course = await course_service.get_course_by_id(db, assignment.course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -173,7 +212,11 @@ async def manual_grade(
         raise HTTPException(status_code=404, detail="Submission not found")
     
     assignment = await assignment_service.get_assignment_by_id(db, submission.assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
     course = await course_service.get_course_by_id(db, assignment.course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -279,7 +322,7 @@ async def get_course_submissions(
     ]
 
 
-@course_router.get("", response_model=List[SubmissionResponse])
+@course_submissions_router.get("", response_model=List[SubmissionResponse])
 async def list_course_submissions(
     course_id: int,
     db: AsyncSession = Depends(get_db),
@@ -336,17 +379,40 @@ async def grade_single_submission(
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
     assignment = await assignment_service.get_assignment_by_id(db, submission.assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
     course = await course_service.get_course_by_id(db, assignment.course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    grade, feedback = await grader_service.grade_submission(
-        submission_content=submission.content,
-        assignment_title=assignment.title,
-        assignment_description=assignment.description or "",
-        assignment_rubric=assignment.rubric or "",
-        course_id=assignment.course_id
-    )
-    await assignment_service.update_ai_grade(db, submission.id, grade, feedback)
-    audit_log("ai_grade_generated", current_user.id, {"submission_id": submission.id})
-    return AIGradeResponse(ai_grade=grade, ai_feedback=feedback)
+    try:
+        grade, feedback = await _grade_with_retry(submission, assignment)
+        await assignment_service.update_ai_grade(db, submission.id, grade, feedback)
+        audit_log("ai_grade_generated", current_user.id, {"submission_id": submission.id})
+        return AIGradeResponse(ai_grade=grade, ai_feedback=feedback)
+    except (asyncio.TimeoutError, httpx.HTTPError) as exc:
+        logger.exception("AI grading service unavailable for submission {id}", id=submission.id)
+        await assignment_service.update_ai_grade(
+            db,
+            submission.id,
+            None,
+            "AI grading failed due to a transient error.",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="AI grading service unavailable. Please retry.",
+        )
+    except Exception as exc:
+        logger.exception("AI grading failed for submission {id}", id=submission.id)
+        await assignment_service.update_ai_grade(
+            db,
+            submission.id,
+            None,
+            "AI grading failed.",
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="AI grading failed. Please try again later.",
+        )

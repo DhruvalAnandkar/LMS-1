@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,8 +42,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-100 via-white to-slate-200" />
       <Card className="w-full max-w-md p-8">
-        <div className="mb-8 text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">AI LMS</p>
+        <div className="mb-8 text-center flex flex-col items-center">
+          <Image src="/logo.png" alt="Lumina Logo" width={80} height={80} className="mb-4 rounded-2xl shadow-sm" />
           <h1 className="mt-3 text-3xl font-semibold text-slate-900 font-display">
             Welcome back
           </h1>
@@ -88,6 +89,8 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>

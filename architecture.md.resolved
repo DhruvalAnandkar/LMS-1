@@ -1,0 +1,36 @@
+```mermaid
+graph TD
+    subgraph Frontend[Frontend Layer]
+        webapp(Next.js Web App)
+    end
+
+    subgraph Backend[Backend Layer]
+        api(FastAPI Server)
+        worker(Celery Worker)
+    end
+
+    subgraph Database[Data Layer]
+        postgres[(PostgreSQL)]
+        redis[(Redis Cache & Queue)]
+    end
+
+    subgraph AI[AI & External Services]
+        openai(Azure OpenAI)
+        pinecone[(Pinecone Vector DB)]
+        blob(Azure Blob Storage)
+    end
+
+    webapp -->|REST API| api
+    
+    api -->|Async ORM| postgres
+    api -->|Pub/Sub| redis
+    api -->|Dispatch Tasks| worker
+    worker -->|Listen for Tasks| redis
+
+    api -->|Embeddings / Chat| openai
+    api -->|Vector Search| pinecone
+    api -->|Upload Files| blob
+    
+    worker -->|Async Embedding| openai
+    worker -->|Index Docs| pinecone
+```

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
+import { headers } from "next/headers";
 
 const displayFont = Space_Grotesk({
   subsets: ["latin"],
@@ -13,8 +14,8 @@ const bodyFont = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "AI Learning Management System",
-  description: "Modern LMS for courses, assignments, and AI assistance.",
+  title: "Lumina",
+  description: "Modern learning platform for courses, assignments, and AI assistance.",
 };
 
 export default function RootLayout({
@@ -22,10 +23,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = headers().get("x-nonce") || undefined;
   return (
     <html lang="en">
       <body
         className={`${displayFont.variable} ${bodyFont.variable} antialiased`}
+        data-nonce={nonce}
       >
         {children}
       </body>

@@ -7,7 +7,7 @@ from app.db.session import init_db
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="AI-Powered Learning Management System API",
+    description="Lumina API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -37,7 +37,7 @@ async def health_check():
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to AI-Powered LMS API",
+        "message": "Welcome to Lumina API",
         "docs": "/docs",
         "version": "1.0.0"
     }
