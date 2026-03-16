@@ -11,7 +11,8 @@ asyncpg==0.29.0
 alembic==1.13.1
 
 # Validation & Settings
-pydantic[email]>=2.7.4,<3
+# Pinned for compatibility; run tests + security checks before bumping.
+pydantic[email]==2.7.4
 pydantic-settings==2.1.0
 
 # Authentication

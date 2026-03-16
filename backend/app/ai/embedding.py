@@ -1,5 +1,6 @@
 import os
 from typing import List, Optional
+from loguru import logger
 from app.core.config import settings
 
 pinecone_client = None
@@ -91,5 +92,28 @@ async def delete_vectors(ids: List[str], namespace: str = ""):
 
 
 async def delete_vectors_by_filter(filter_dict: dict, namespace: str = ""):
+    if not filter_dict:
+        raise ValueError("delete_vectors_by_filter requires a non-empty filter_dict")
+    client = get_pinecone_client()
+    try:
+        description = client.describe_index(settings.PINECONE_INDEX_NAME)
+    except Exception as exc:
+        raise RuntimeError("Unable to describe Pinecone index for filter deletes") from exc
+    spec = None
+    if isinstance(description, dict):
+        spec = description.get("spec")
+    else:
+        spec = getattr(description, "spec", None)
+    serverless = False
+    if isinstance(spec, dict):
+        serverless = spec.get("serverless") is not None
+    elif spec is not None:
+        serverless = getattr(spec, "serverless", None) is not None
+    if not serverless:
+        raise RuntimeError("Filter-based deletes require a serverless Pinecone index")
     index = get_pinecone_index()
-    index.delete(filter=filter_dict, namespace=namespace)
+    try:
+        index.delete(filter=filter_dict, namespace=namespace)
+    except Exception as exc:
+        logger.exception("Failed to delete vectors by filter")
+        raise

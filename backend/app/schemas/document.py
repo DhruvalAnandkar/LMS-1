@@ -12,9 +12,9 @@ class DocumentResponse(DocumentBase):
     course_id: int
     file_name: str
     file_type: str
-    file_key: str
+    file_key: Optional[str] = None
     file_url: str | None = None
-    size: int
+    size: Optional[int] = None
     uploaded_at: datetime
 
     class Config:

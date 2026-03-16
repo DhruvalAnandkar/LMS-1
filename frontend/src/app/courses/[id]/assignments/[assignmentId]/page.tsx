@@ -49,6 +49,7 @@ export default function AssignmentDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [grading, setGrading] = useState<number | null>(null);
+  const [isBatchGrading, setIsBatchGrading] = useState(false);
 
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -127,11 +128,14 @@ export default function AssignmentDetailPage() {
   };
 
   const handleBatchGrade = async () => {
+    setIsBatchGrading(true);
     try {
       await api.post(`/assignments/${assignmentId}/grade/ai`);
       fetchAssignmentData();
     } catch (error) {
       console.error('Failed to batch grade:', error);
+    } finally {
+      setIsBatchGrading(false);
     }
   };
 
@@ -179,9 +183,9 @@ export default function AssignmentDetailPage() {
         <Card className="overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Submissions</h2>
-            <Button variant="secondary" onClick={handleBatchGrade}>
+            <Button variant="secondary" onClick={handleBatchGrade} disabled={isBatchGrading}>
               <Sparkles className="w-4 h-4" />
-              Grade all with AI
+              {isBatchGrading ? 'Grading...' : 'Grade all with AI'}
             </Button>
           </div>
           {submissions.length === 0 ? (
@@ -229,7 +233,7 @@ export default function AssignmentDetailPage() {
                       <Sparkles className="w-4 h-4" />
                       {grading === submission.id ? 'Grading...' : 'Grade with AI'}
                     </Button>
-                    {submission.ai_grade !== null && (
+                    {submission.ai_grade !== null && submission.final_grade == null && (
                       <Button size="sm" variant="secondary" onClick={() => handleApproveGrade(submission.id)}>
                         <Check className="w-4 h-4" />
                         Approve grade

@@ -138,8 +138,8 @@ async def create_submission(
 async def update_ai_grade(
     db: AsyncSession,
     submission_id: int,
-    ai_grade: float,
-    ai_feedback: str
+    ai_grade: float | None,
+    ai_feedback: str | None
 ) -> Optional[Submission]:
     db_submission = await get_submission_by_id(db, submission_id)
     if not db_submission:
@@ -147,7 +147,8 @@ async def update_ai_grade(
     
     db_submission.ai_grade = ai_grade
     db_submission.ai_feedback = ai_feedback
-    db_submission.status = SubmissionStatus.PENDING_REVIEW
+    if ai_grade is not None:
+        db_submission.status = SubmissionStatus.PENDING_REVIEW
     await db.flush()
     await db.refresh(db_submission)
     return db_submission

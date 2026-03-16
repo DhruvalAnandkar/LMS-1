@@ -7,6 +7,7 @@ from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services import user as user_service
 from app.core.security import get_current_user, RoleChecker, validate_password
 from app.core.audit import audit_log
+from loguru import logger
 from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -29,7 +30,10 @@ async def create_user(
             detail="Email already registered"
         )
     created = await user_service.create_user(db, user)
-    audit_log("user_created", current_user.id, {"created_user_id": created.id})
+    try:
+        audit_log("user_created", current_user.id, {"created_user_id": created.id})
+    except Exception as exc:
+        logger.warning("audit_log failed for user_created: {error}", error=str(exc))
     return created
 
 

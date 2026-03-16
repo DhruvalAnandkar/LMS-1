@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { Eye, EyeOff, Loader2, BrainCircuit } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,10 +40,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-background">
-      {/* Animated Abstract Backgrounds */}
-      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/10 blur-[150px] animate-pulse-glow" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-500/10 blur-[150px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-100 via-white to-slate-200" />
+      <Card className="w-full max-w-md p-8">
+        <div className="mb-8 text-center flex flex-col items-center">
+          <Image src="/logo.png" alt="Lumina Logo" width={80} height={80} className="mb-4 rounded-2xl shadow-sm" />
+          <h1 className="mt-3 text-3xl font-semibold text-slate-900 font-display">
+            Welcome back
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">Sign in to continue</p>
+        </div>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -61,12 +68,26 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-muted-foreground">Sign in to your AI LMS account</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
               >
                 {error}
               </motion.div>

@@ -20,6 +20,7 @@ export default function DocumentsPage() {
   const courseId = params.id;
   const router = useRouter();
   const { user } = useAuthStore();
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);

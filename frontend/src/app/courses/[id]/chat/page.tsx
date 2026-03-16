@@ -128,7 +128,7 @@ export default function ChatPage() {
               placeholder="Type your message..."
               disabled={loading}
             />
-            <Button onClick={handleSend} disabled={loading || !input.trim()}>
+            <Button onClick={handleSend} disabled={loading || !input.trim()} aria-label="Send message">
               <Send size={18} />
             </Button>
           </div>
