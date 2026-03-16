@@ -11,7 +11,7 @@ from app.services import assignment as assignment_service
 from app.services import course as course_service
 from app.core.security import get_current_user, RoleChecker
 from app.core.audit import audit_log
-from app.services.storage import BlobStorage
+from app.services.storage import get_storage
 from app.core.config import settings
 from app.ai import grader as grader_service
 from app.models.user import User, UserRole
@@ -67,7 +67,7 @@ async def get_my_submissions(
     current_user: User = Depends(student_only)
 ):
     submissions = await assignment_service.get_submissions_by_student(db, current_user.id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         SubmissionResponse(
             id=sub.id,
@@ -101,7 +101,7 @@ async def list_my_submissions(
     current_user: User = Depends(student_only)
 ):
     submissions = await assignment_service.get_submissions_by_student(db, current_user.id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         SubmissionResponse(
             id=sub.id,
@@ -142,7 +142,7 @@ async def get_submission(
     if submission.student_id != current_user.id and current_user.role == UserRole.STUDENT:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    storage = BlobStorage()
+    storage = get_storage()
     return SubmissionResponse(
         id=submission.id,
         assignment_id=submission.assignment_id,
@@ -242,7 +242,7 @@ async def get_pending_submissions(
         raise HTTPException(status_code=403, detail="Not authorized")
     
     submissions = await assignment_service.get_pending_submissions(db, course_id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         SubmissionResponse(
             id=sub.id,
@@ -289,7 +289,7 @@ async def get_course_submissions(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     submissions = await assignment_service.get_submissions_by_course(db, course_id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         SubmissionResponse(
             id=sub.id,
@@ -336,7 +336,7 @@ async def list_course_submissions(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     submissions = await assignment_service.get_submissions_by_course(db, course_id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         SubmissionResponse(
             id=sub.id,

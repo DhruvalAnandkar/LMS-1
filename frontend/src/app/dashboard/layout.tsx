@@ -7,6 +7,7 @@ import { BookOpen, GraduationCap, LayoutDashboard, LogOut, FileText, Shield, Men
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading, logout, fetchUser } = useAuthStore();
@@ -14,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     fetchUser();
   }, [fetchUser]);
 
@@ -26,10 +28,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -52,8 +54,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen">
-      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-background">
+      {/* Dynamic Background Glows for context */}
+      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[150px] pointer-events-none" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[150px] pointer-events-none" />
+
+      <nav className="sticky top-0 z-50 w-full border-b border-white bg-white/60 backdrop-blur-xl shadow-sm">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-10">
             <Link href="/dashboard" className="flex items-center gap-2">
@@ -86,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="sr-only">Toggle navigation</span>
             </Button>
             <div className="hidden items-center gap-3 sm:flex">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-primary ring-2 ring-blue-200 shadow-sm">
                 {user.full_name.charAt(0).toUpperCase()}
               </div>
               <div className="text-xs">
@@ -96,13 +102,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <Button
               variant="ghost"
+              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               onClick={() => {
                 logout();
                 router.push('/login');
               }}
             >
               <LogOut size={18} />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
@@ -125,8 +132,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </nav>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
+      
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 relative z-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

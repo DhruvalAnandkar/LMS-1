@@ -12,7 +12,7 @@ from app.services import course as course_service
 from app.services import assignment as assignment_service
 from app.services import document as document_service
 from app.services import document_service as doc_ingest
-from app.services.storage import BlobStorage
+from app.services.storage import get_storage
 from app.ai import chat as chat_service
 from app.ai import grader as grader_service
 from app.ai.embedding import delete_vectors_by_filter
@@ -134,7 +134,7 @@ async def list_documents(
         raise HTTPException(status_code=404, detail="Course not found")
     
     documents = await document_service.get_documents_by_course(db, course_id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         DocumentResponse(
             id=doc.id,

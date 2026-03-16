@@ -1,6 +1,52 @@
+import json
 from typing import Dict, Any, Tuple
 from app.ai.embedding import embed_text, query_vectors
 
+
+# ── Provider-specific grading helpers ─────────────────────────────────
+
+def _grade_google(system_prompt: str, submission_content: str) -> dict:
+    """Grade using Google Generative AI (Gemini)."""
+    import google.generativeai as genai
+    from app.core.config import settings
+
+    genai.configure(api_key=settings.GOOGLE_API_KEY)
+    model = genai.GenerativeModel(
+        model_name=settings.GOOGLE_AI_MODEL,
+        system_instruction=system_prompt,
+        generation_config=genai.GenerationConfig(
+            temperature=0.3,
+            max_output_tokens=1500,
+            response_mime_type="application/json",
+        ),
+    )
+    response = model.generate_content(submission_content)
+    return json.loads(response.text)
+
+
+def _grade_azure(system_prompt: str, submission_content: str, settings) -> dict:
+    """Grade using Azure OpenAI."""
+    from openai import AzureOpenAI
+
+    client = AzureOpenAI(
+        api_key=settings.AZURE_OPENAI_KEY,
+        api_version=settings.AZURE_OPENAI_API_VERSION,
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    )
+    response = client.chat.completions.create(
+        model=settings.AZURE_OPENAI_DEPLOYMENT,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": submission_content},
+        ],
+        temperature=0.3,
+        max_tokens=1500,
+        response_format={"type": "json_object"},
+    )
+    return json.loads(response.choices[0].message.content)
+
+
+# ── Public entry-point ────────────────────────────────────────────────
 
 async def grade_submission(
     submission_content: str,
@@ -8,17 +54,10 @@ async def grade_submission(
     assignment_description: str,
     assignment_rubric: str,
     course_id: int,
-    max_grade: float = 100.0
+    max_grade: float = 100.0,
 ) -> Tuple[float, str]:
     from app.core.config import settings
-    from openai import AzureOpenAI
-    
-    client = AzureOpenAI(
-        api_key=settings.AZURE_OPENAI_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION,
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
-    )
-    
+
     course_context = ""
     try:
         query_emb = await embed_text(submission_content)
@@ -26,15 +65,14 @@ async def grade_submission(
             query_embedding=query_emb,
             top_k=3,
             filter_dict={"course_id": str(course_id)},
-            namespace=str(course_id)
+            namespace=str(course_id),
         )
-        course_context = "\n\n".join([
-            chunk.get("metadata", {}).get("text", "")
-            for chunk in context_chunks
-        ])
+        course_context = "\n\n".join(
+            [chunk.get("metadata", {}).get("text", "") for chunk in context_chunks]
+        )
     except Exception:
         pass
-    
+
     system_prompt = f"""You are an expert assignment grader. Evaluate the student submission based on the assignment requirements and rubric.
 
 Assignment Title: {assignment_title}
@@ -56,22 +94,14 @@ Respond in the following JSON format:
 }}
 
 Be fair, objective, and constructive in your evaluation."""
-    
-    response = client.chat.completions.create(
-        model=settings.AZURE_OPENAI_DEPLOYMENT,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": submission_content}
-        ],
-        temperature=0.3,
-        max_tokens=1500,
-        response_format={"type": "json_object"}
-    )
-    
-    import json
-    result = json.loads(response.choices[0].message.content)
-    
+
+    # ── Route to the configured AI provider ──
+    if settings.AI_PROVIDER == "google":
+        result = _grade_google(system_prompt, submission_content)
+    else:
+        result = _grade_azure(system_prompt, submission_content, settings)
+
     grade = float(result.get("grade", 0))
     feedback = str(result.get("feedback", ""))
-    
+
     return grade, feedback

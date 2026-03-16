@@ -13,11 +13,14 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronRight,
+  GraduationCap,
+  Calendar
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 interface Module {
   id: number;
@@ -55,6 +58,16 @@ interface Course {
     full_name: string;
   } | null;
 }
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -168,174 +181,234 @@ export default function CourseDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (!course) {
-    return <div className="text-center py-12">Course not found</div>;
+    return <div className="text-center py-12 text-slate-500 font-medium">Course not found</div>;
   }
 
   return (
-    <div>
-      <Button variant="ghost" onClick={() => router.push('/courses')} className="mb-4">
-        <ArrowLeft className="w-4 h-4" />
+    <div className="space-y-8 pb-12">
+      <Button variant="ghost" onClick={() => router.push('/courses')} className="mb-2 text-slate-500 hover:text-slate-900">
+        <ArrowLeft className="w-4 h-4 mr-2" />
         Back to courses
       </Button>
 
-      <Card className="p-6 mb-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-900 font-display mb-2">
+      {/* Hero Section */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative overflow-hidden rounded-3xl bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-100"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-70 pointer-events-none" />
+        <div className="p-8 md:p-12 relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm font-semibold mb-6">
+              <GraduationCap className="w-4 h-4" />
+              Course Overview
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 font-display tracking-tight mb-4">
               {course.title}
             </h1>
-            {course.description && <p className="text-slate-600">{course.description}</p>}
-            <p className="text-sm text-slate-500 mt-3">
-              Instructor: {course.teacher?.full_name || 'Unknown'}
-            </p>
+            {course.description && <p className="text-lg text-slate-600 leading-relaxed mb-6">{course.description}</p>}
+            
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold border border-slate-200">
+                {course.teacher?.full_name.charAt(0).toUpperCase() || 'T'}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{course.teacher?.full_name || 'Unknown Instructor'}</p>
+                <p className="text-xs text-slate-500">Lead Instructor</p>
+              </div>
+            </div>
           </div>
+          
           <Link
             href={`/courses/${courseId}/chat`}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 py-4 text-base font-medium text-white shadow-xl shadow-slate-900/20 hover:scale-105 hover:bg-slate-800 transition-all focus:outline-none focus:ring-4 focus:ring-slate-900/10"
           >
-            <MessageSquare className="w-4 h-4" />
-            AI Assistant
+            <MessageSquare className="w-5 h-5 text-blue-400" />
+            Launch AI Assistant
           </Link>
         </div>
-      </Card>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-slate-900">Modules & Lessons</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Modules */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+          <div className="flex justify-between items-end border-b border-slate-200 pb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 font-display">Syllabus</h2>
+              <p className="text-sm text-slate-500 mt-1">Modules & Lessons</p>
+            </div>
             {isOwner && (
-              <Button size="sm" onClick={() => setShowModuleModal(true)}>
-                <Plus className="w-4 h-4" />
+              <Button size="sm" onClick={() => setShowModuleModal(true)} className="bg-primary/10 text-primary hover:bg-primary/20 shadow-none">
+                <Plus className="w-4 h-4 mr-2" />
                 Add module
               </Button>
             )}
           </div>
 
           {modules.length === 0 ? (
-            <Card className="p-6 text-center text-slate-500">No modules yet</Card>
+            <Card className="p-12 text-center border-dashed border-2 border-slate-200 bg-slate-50">
+              <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="font-medium text-slate-600">No modules yet</p>
+              <p className="text-sm text-slate-500 mt-1">Check back later for course content.</p>
+            </Card>
           ) : (
-            <div className="space-y-3">
-              {modules.map((module) => (
-                <Card key={module.id} className="overflow-hidden">
-                  <button
-                    onClick={() => toggleModule(module.id)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50"
-                  >
-                    <div className="flex items-center">
-                      {expandedModules.has(module.id) ? (
-                        <ChevronDown className="w-5 h-5 text-slate-400 mr-2" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5 text-slate-400 mr-2" />
-                      )}
-                      <span className="font-medium text-slate-900">{module.title}</span>
-                    </div>
-                    {isOwner && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedModuleId(module.id);
-                          setShowLessonModal(true);
-                        }}
-                        className="p-1 text-slate-700 hover:bg-slate-100 rounded"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    )}
-                  </button>
-                  {expandedModules.has(module.id) && module.lessons.length > 0 && (
-                    <div className="border-t border-slate-100 px-4 py-2 pb-4">
-                      {module.lessons.map((lesson) => (
-                        <div key={lesson.id} className="flex items-center py-2 text-sm text-slate-600">
-                          <BookOpen className="w-4 h-4 mr-2" />
-                          {lesson.title}
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
+              {modules.map((module, index) => (
+                <motion.div key={module.id} variants={itemVariants}>
+                  <Card className="overflow-hidden border-slate-200 shadow-sm transition-shadow hover:shadow-md">
+                    <button
+                      onClick={() => toggleModule(module.id)}
+                      className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center text-left">
+                        <div className="w-8 flex justify-center shrink-0">
+                          {expandedModules.has(module.id) ? (
+                            <ChevronDown className="w-5 h-5 text-slate-400" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-slate-400" />
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
+                        <div>
+                          <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Module {index + 1}</p>
+                          <span className="font-semibold text-slate-900 text-lg">{module.title}</span>
+                          {module.description && <p className="text-sm text-slate-500 mt-1">{module.description}</p>}
+                        </div>
+                      </div>
+                      {isOwner && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedModuleId(module.id);
+                            setShowLessonModal(true);
+                          }}
+                          className="shrink-0 p-2 text-primary hover:bg-blue-50 rounded-lg transition-colors ml-4"
+                          title="Add Lesson"
+                        >
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      )}
+                    </button>
+                    
+                    <AnimatePresence>
+                      {expandedModules.has(module.id) && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="border-t border-slate-100 bg-slate-50/50"
+                        >
+                          {module.lessons.length === 0 ? (
+                            <div className="px-12 py-6 text-sm text-slate-500 italic">No lessons in this module.</div>
+                          ) : (
+                            <div className="py-2">
+                              {module.lessons.map((lesson, j) => (
+                                <div key={lesson.id} className="group flex items-center px-10 py-3 text-sm text-slate-600 hover:bg-white hover:text-slate-900 transition-colors border-l-2 border-transparent hover:border-primary">
+                                  <div className="w-6 h-6 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-xs font-medium mr-4 group-hover:bg-blue-100 group-hover:text-primary group-hover:border-blue-200 transition-colors">
+                                    {j + 1}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">{lesson.title}</span>
+                                    {lesson.content && <p className="text-xs text-slate-500 mt-0.5 max-w-xl truncate">{lesson.content}</p>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-slate-900">Assignments</h2>
+        {/* Right Column: Assignments */}
+        <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+          <div className="flex justify-between items-end border-b border-slate-200 pb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 font-display">Assessments</h2>
+              <p className="text-sm text-slate-500 mt-1">Tasks & Assignments</p>
+            </div>
             {isOwner && (
-              <Button size="sm" onClick={() => setShowAssignmentModal(true)}>
-                <Plus className="w-4 h-4" />
-                Add assignment
+              <Button size="sm" onClick={() => setShowAssignmentModal(true)} className="bg-primary/10 text-primary hover:bg-primary/20 shadow-none">
+                <Plus className="w-4 h-4 mr-1" />
+                Add
               </Button>
             )}
           </div>
 
           {assignments.length === 0 ? (
-            <Card className="p-6 text-center text-slate-500">No assignments yet</Card>
+            <Card className="p-10 text-center border-dashed border-2 border-slate-200 bg-slate-50">
+              <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+              <p className="font-medium text-slate-600 text-sm">No assignments yet</p>
+            </Card>
           ) : (
-            <div className="space-y-3">
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
               {assignments.map((assignment) => (
-                <Link key={assignment.id} href={`/courses/${courseId}/assignments/${assignment.id}`}>
-                  <Card className="p-4 transition hover:-translate-y-1 hover:shadow-md">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center">
-                        <FileText className="w-5 h-5 text-slate-400 mr-2" />
-                        <span className="font-medium text-slate-900">{assignment.title}</span>
+                <motion.div key={assignment.id} variants={itemVariants}>
+                  <Link href={`/courses/${courseId}/assignments/${assignment.id}`}>
+                    <Card className="p-5 transition-all hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 border-slate-200 relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-slate-200 group-hover:bg-primary transition-colors" />
+                      <div className="pl-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-slate-900 group-hover:text-primary transition-colors">{assignment.title}</h3>
+                        </div>
+                        {assignment.description && (
+                          <p className="text-sm text-slate-600 mb-3 line-clamp-2">{assignment.description}</p>
+                        )}
+                        <div className="flex items-center text-xs font-medium text-slate-500 bg-slate-100 w-max px-2.5 py-1 rounded-md">
+                          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                          {assignment.due_date ? `Due: ${new Date(assignment.due_date).toLocaleDateString()}` : 'No due date'}
+                        </div>
                       </div>
-                    </div>
-                    {assignment.description && (
-                      <p className="text-sm text-slate-600 mt-2 ml-7">{assignment.description}</p>
-                    )}
-                    {assignment.due_date && (
-                      <p className="text-sm text-slate-500 mt-2 ml-7">
-                        Due: {new Date(assignment.due_date).toLocaleDateString()}
-                      </p>
-                    )}
-                  </Card>
-                </Link>
+                    </Card>
+                  </Link>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
 
+      {/* Modals */}
       <Modal
         open={showModuleModal}
         onClose={() => setShowModuleModal(false)}
-        title="Add module"
-        description="Create a new module for this course."
+        title="Add Course Module"
+        description="Organize your course into easily digestible chunks."
       >
-        <form onSubmit={handleCreateModule} className="space-y-4">
+        <form onSubmit={handleCreateModule} className="space-y-5 mt-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Module Title</label>
             <Input
               type="text"
               value={newModule.title}
               onChange={(e) => setNewModule({ ...newModule, title: e.target.value })}
               required
+              className="bg-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Short Description</label>
             <textarea
               value={newModule.description}
               onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
-              rows={2}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              rows={3}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
             />
           </div>
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={() => setShowModuleModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Add module'}
-            </Button>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setShowModuleModal(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving} className="bg-primary">{saving ? 'Saving...' : 'Create module'}</Button>
           </div>
         </form>
       </Modal>
@@ -346,17 +419,18 @@ export default function CourseDetailPage() {
           setShowLessonModal(false);
           setSelectedModuleId(null);
         }}
-        title="Add lesson"
-        description="Create a new lesson for this module."
+        title="Add Lesson"
+        description="Create educational content within the selected module."
       >
-        <form onSubmit={handleCreateLesson} className="space-y-4">
+        <form onSubmit={handleCreateLesson} className="space-y-5 mt-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Lesson Title</label>
             <Input
               type="text"
               value={newLesson.title}
               onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
               required
+              className="bg-white"
             />
           </div>
           <div>
@@ -364,11 +438,11 @@ export default function CourseDetailPage() {
             <textarea
               value={newLesson.content}
               onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
-              rows={4}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              rows={5}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
             />
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="ghost"
@@ -379,9 +453,7 @@ export default function CourseDetailPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Add lesson'}
-            </Button>
+            <Button type="submit" disabled={saving} className="bg-primary">{saving ? 'Saving...' : 'Add lesson'}</Button>
           </div>
         </form>
       </Modal>
@@ -389,26 +461,27 @@ export default function CourseDetailPage() {
       <Modal
         open={showAssignmentModal}
         onClose={() => setShowAssignmentModal(false)}
-        title="Add assignment"
-        description="Create a new assignment for this course."
+        title="Add Assessment"
+        description="Give students a task to evaluate their learning."
       >
-        <form onSubmit={handleCreateAssignment} className="space-y-4">
+        <form onSubmit={handleCreateAssignment} className="space-y-5 mt-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Title</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Task Title</label>
             <Input
               type="text"
               value={newAssignment.title}
               onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
               required
+              className="bg-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Instructions / Description</label>
             <textarea
               value={newAssignment.description}
               onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
-              rows={3}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              rows={4}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
             />
           </div>
           <div>
@@ -417,15 +490,12 @@ export default function CourseDetailPage() {
               type="date"
               value={newAssignment.due_date}
               onChange={(e) => setNewAssignment({ ...newAssignment, due_date: e.target.value })}
+              className="bg-white"
             />
           </div>
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={() => setShowAssignmentModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Add assignment'}
-            </Button>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setShowAssignmentModal(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving} className="bg-primary">{saving ? 'Saving...' : 'Add assignment'}</Button>
           </div>
         </form>
       </Modal>

@@ -83,6 +83,8 @@ export default function DocumentsPage() {
     }
   };
 
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
