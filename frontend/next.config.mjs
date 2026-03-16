@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   async headers() {
     const csp = [
       "default-src 'self'",
@@ -7,7 +8,7 @@ const nextConfig = {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data: https:",
-      "connect-src 'self' https:",
+      "connect-src 'self' https: http://localhost:8000",
       "frame-ancestors 'none'",
     ].join('; ');
 

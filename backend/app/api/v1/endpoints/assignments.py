@@ -10,7 +10,7 @@ from app.schemas.assignment import (
 )
 from app.services import assignment as assignment_service
 from app.services import course as course_service
-from app.services.storage import BlobStorage
+from app.services.storage import get_storage
 from app.services import document_service as doc_ingest
 from app.ai import grader as grader_service
 from app.core.security import get_current_user, RoleChecker
@@ -24,7 +24,7 @@ teacher_admin = RoleChecker([UserRole.TEACHER, UserRole.ADMIN])
 student_only = RoleChecker([UserRole.STUDENT])
 
 
-def _submission_file_url(storage: BlobStorage, file_key: str) -> str | None:
+def _submission_file_url(storage, file_key: str) -> str | None:
     if file_key == "inline":
         return None
     return storage.get_blob_url(settings.AZURE_STORAGE_SUBMISSIONS_CONTAINER, file_key)
@@ -148,7 +148,7 @@ async def list_submissions(
         raise HTTPException(status_code=403, detail="Not authorized")
     
     submissions = await assignment_service.get_submissions_by_assignment(db, assignment_id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         SubmissionResponse(
             id=sub.id,
@@ -237,7 +237,7 @@ async def submit_assignment_file(
     if not extracted_text.strip():
         raise HTTPException(status_code=400, detail="No text content found in file")
 
-    storage = BlobStorage()
+    storage = get_storage()
     blob_key = f"courses/{assignment.course_id}/assignments/{assignment_id}/submissions/{uuid.uuid4()}_{file.filename}"
     upload_result = storage.upload_bytes(
         container=settings.AZURE_STORAGE_SUBMISSIONS_CONTAINER,

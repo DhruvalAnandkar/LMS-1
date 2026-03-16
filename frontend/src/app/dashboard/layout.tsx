@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { BookOpen, GraduationCap, LayoutDashboard, LogOut, FileText, Shield } from 'lucide-react';
+import { BookOpen, LayoutDashboard, LogOut, FileText, Shield, Laptop } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading, logout, fetchUser } = useAuthStore();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     fetchUser();
   }, [fetchUser]);
 
@@ -24,10 +27,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -50,11 +53,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen">
-      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-background">
+      {/* Dynamic Background Glows for context */}
+      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[150px] pointer-events-none" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[150px] pointer-events-none" />
+
+      <nav className="sticky top-0 z-50 w-full border-b border-white bg-white/60 backdrop-blur-xl shadow-sm">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-10">
-            <h1 className="text-xl font-semibold text-slate-900 font-display">AI LMS</h1>
+            <Link href="/dashboard" className="flex items-center gap-2 group">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                <Laptop className="w-5 h-5 text-primary primary-glow" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-900 font-display tracking-wide">AI LMS</h1>
+            </Link>
             <div className="hidden items-center gap-2 md:flex">
               {navItems.map((item) => (
                 <Link
@@ -70,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden items-center gap-3 sm:flex">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-primary ring-2 ring-blue-200 shadow-sm">
                 {user.full_name.charAt(0).toUpperCase()}
               </div>
               <div className="text-xs">
@@ -80,19 +92,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <Button
               variant="ghost"
+              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               onClick={() => {
                 logout();
                 router.push('/login');
               }}
             >
               <LogOut size={18} />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
       </nav>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
+      
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 relative z-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

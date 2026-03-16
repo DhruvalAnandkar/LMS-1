@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -17,26 +19,34 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Azure OpenAI
-    AZURE_OPENAI_KEY: str = ""
-    AZURE_OPENAI_ENDPOINT: str = ""
+    # --------------- AI Provider Toggle ---------------
+    AI_PROVIDER: str = "azure"  # "azure" or "google"
+
+    # Azure OpenAI (optional — only required when AI_PROVIDER == "azure")
+    AZURE_OPENAI_KEY: Optional[str] = ""
+    AZURE_OPENAI_ENDPOINT: Optional[str] = ""
     AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
     AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
 
-    # Azure Blob Storage
-    AZURE_STORAGE_CONNECTION_STRING: str = ""
-    AZURE_STORAGE_ACCOUNT_NAME: str = ""
-    AZURE_STORAGE_ACCOUNT_KEY: str = ""
+    # Google AI (optional — only required when AI_PROVIDER == "google")
+    GOOGLE_API_KEY: Optional[str] = ""
+    GOOGLE_AI_MODEL: str = "gemini-2.0-flash"
+
+    # --------------- Storage Toggle ---------------
+    USE_LOCAL_STORAGE: bool = False
+    LOCAL_STORAGE_PATH: str = "./uploads"
+
+    # Azure Blob Storage (optional — only required when USE_LOCAL_STORAGE is False)
+    AZURE_STORAGE_CONNECTION_STRING: Optional[str] = ""
+    AZURE_STORAGE_ACCOUNT_NAME: Optional[str] = ""
+    AZURE_STORAGE_ACCOUNT_KEY: Optional[str] = ""
     AZURE_STORAGE_DOCUMENTS_CONTAINER: str = "lms-documents"
     AZURE_STORAGE_SUBMISSIONS_CONTAINER: str = "lms-submissions"
     AZURE_STORAGE_USE_SAS: bool = True
     AZURE_STORAGE_SAS_EXPIRY_MINUTES: int = 60
 
-    # Google AI
-    GOOGLE_API_KEY: str = ""
-
     # Pinecone
-    PINECONE_API_KEY: str = ""
+    PINECONE_API_KEY: Optional[str] = ""
     PINECONE_ENVIRONMENT: str = "us-east-1"
     PINECONE_INDEX_NAME: str = "lms-course-content"
 

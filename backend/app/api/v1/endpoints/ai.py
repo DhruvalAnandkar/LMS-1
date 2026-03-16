@@ -10,7 +10,7 @@ from app.services import course as course_service
 from app.services import assignment as assignment_service
 from app.services import document as document_service
 from app.services import document_service as doc_ingest
-from app.services.storage import BlobStorage
+from app.services.storage import get_storage
 from app.ai import chat as chat_service
 from app.ai import grader as grader_service
 from app.ai.embedding import delete_vectors_by_filter
@@ -49,7 +49,7 @@ async def upload_document(
     if not extracted_text.strip():
         raise HTTPException(status_code=400, detail="No text content found in file")
 
-    storage = BlobStorage()
+    storage = get_storage()
     blob_key = f"courses/{course_id}/documents/{uuid.uuid4()}_{file.filename}"
     upload_result = storage.upload_bytes(
         container=settings.AZURE_STORAGE_DOCUMENTS_CONTAINER,
@@ -97,7 +97,7 @@ async def list_documents(
         raise HTTPException(status_code=404, detail="Course not found")
     
     documents = await document_service.get_documents_by_course(db, course_id)
-    storage = BlobStorage()
+    storage = get_storage()
     return [
         DocumentResponse(
             id=doc.id,
@@ -128,7 +128,7 @@ async def delete_document(
     if course.teacher_id != current_user.id and current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    storage = BlobStorage()
+    storage = get_storage()
     storage.delete_blob(settings.AZURE_STORAGE_DOCUMENTS_CONTAINER, document.file_key)
     await delete_vectors_by_filter(
         {"course_id": str(course_id), "document_id": str(document_id)},
