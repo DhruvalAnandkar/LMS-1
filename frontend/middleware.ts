@@ -8,13 +8,26 @@ export function middleware(_request: NextRequest) {
   if (isDev) {
     scriptSrc.push("'unsafe-eval'", "'unsafe-inline'");
   }
+  const connectSrc: string[] = ["'self'"];
+  if (isDev) {
+    connectSrc.push('http://localhost:8000');
+  }
+  const apiOrigin =
+    process.env.NEXT_PUBLIC_API_ORIGIN || process.env.NEXT_PUBLIC_API_URL;
+  if (apiOrigin) {
+    try {
+      connectSrc.push(new URL(apiOrigin).origin);
+    } catch {
+      // Ignore invalid URL values.
+    }
+  }
   const csp = [
     "default-src 'self'",
     "img-src 'self' data: https:",
     `script-src ${scriptSrc.join(' ')}`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data: https:",
-    "connect-src 'self' https: http:",
+    `connect-src ${connectSrc.join(' ')}`,
     "frame-ancestors 'none'",
   ].join('; ');
 

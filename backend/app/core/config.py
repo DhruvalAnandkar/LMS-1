@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     # Google AI
     GOOGLE_API_KEY: str = ""
+    GOOGLE_AI_MODEL: str = "gemini-1.5-flash"
+
+    # AI Provider
+    AI_PROVIDER: str = "azure"
 
     # Pinecone
     PINECONE_API_KEY: str = ""
@@ -48,6 +52,10 @@ class Settings(BaseSettings):
 
     # Upload limits (MB)
     MAX_UPLOAD_MB: int = 10
+
+    # Local storage (optional)
+    USE_LOCAL_STORAGE: bool = False
+    LOCAL_STORAGE_PATH: str = "./local_storage"
 
     class Config:
         env_file = ".env"

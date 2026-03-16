@@ -1,5 +1,6 @@
 from typing import Dict, Any, Tuple
 from app.ai.embedding import embed_text, query_vectors
+from loguru import logger
 
 
 async def grade_submission(
@@ -11,9 +12,12 @@ async def grade_submission(
     max_grade: float = 100.0
 ) -> Tuple[float, str]:
     from app.core.config import settings
-    from openai import AzureOpenAI
+    from openai import AsyncAzureOpenAI
     
-    client = AzureOpenAI(
+    if not settings.AZURE_OPENAI_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+        raise ValueError("Azure OpenAI credentials are not configured")
+
+    client = AsyncAzureOpenAI(
         api_key=settings.AZURE_OPENAI_KEY,
         api_version=settings.AZURE_OPENAI_API_VERSION,
         azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
@@ -57,19 +61,31 @@ Respond in the following JSON format:
 
 Be fair, objective, and constructive in your evaluation."""
     
-    response = client.chat.completions.create(
-        model=settings.AZURE_OPENAI_DEPLOYMENT,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": submission_content}
-        ],
-        temperature=0.3,
-        max_tokens=1500,
-        response_format={"type": "json_object"}
-    )
-    
+    try:
+        response = await client.chat.completions.create(
+            model=settings.AZURE_OPENAI_DEPLOYMENT,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": submission_content}
+            ],
+            temperature=0.3,
+            max_tokens=1500,
+            response_format={"type": "json_object"}
+        )
+    except Exception as exc:
+        logger.exception("Azure AI grading failed")
+        raise RuntimeError("Azure AI grading failed") from exc
+
+    response_text = response.choices[0].message.content or ""
     import json
-    result = json.loads(response.choices[0].message.content)
+    try:
+        result = json.loads(response_text)
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Failed to parse AI response as JSON. response_preview={preview}",
+            preview=response_text[:500],
+        )
+        raise ValueError("Failed to parse AI response as JSON") from exc
     
     grade = float(result.get("grade", 0))
     feedback = str(result.get("feedback", ""))
